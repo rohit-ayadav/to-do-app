@@ -508,7 +508,7 @@ const TodoApp = () => {
           Built with <a href="https://nextjs.org" className="underline">Next.js</a> and <a href="https://tailwindcss.com" className="underline">Tailwind CSS</a> by <a href="https://www.linkedin.com/in/rohitkumaryadav-rky/" className="underline">Rohit Kumar Yadav</a>
         </p>
         <p>
-          <a href="" className="underline">View source code</a> on GitHub
+          <a href="https://github.com/rohit-ayadav/to-do-app" className="underline">View source code</a> on GitHub
         </p>
       </footer>
 
