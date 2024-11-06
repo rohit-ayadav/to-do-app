@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Trash2, CheckCircle, Circle, Edit, Calendar, Plus, X } from 'lucide-react';
+import { Toaster, toast } from 'react-hot-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,8 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Toaster } from 'react-hot-toast';
-import toast from 'react-hot-toast';
+
 
 // Types
 interface Todo {
@@ -284,7 +284,11 @@ const TodoApp = () => {
 
   return (
     <>
-      <Toaster position="top-right" />
+      <Toaster
+        position="top-right"
+        reverseOrder={false}
+      />
+
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-4xl mx-auto px-4">
           <header className="text-center mb-8">
