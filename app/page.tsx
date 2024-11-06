@@ -9,8 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import toast, { Toaster } from 'react-hot-toast';
+import { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
+// Types
 interface Todo {
   id: string;
   text: string;
@@ -22,11 +24,137 @@ interface Todo {
   createdAt: string;
 }
 
+interface TodoItemProps {
+  todo: Todo;
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+  onEdit: (id: string, newText: string) => void;
+  onRemoveTag: (id: string, tag: string) => void;
+  getPriorityColor: (priority: string) => string;
+}
+
+// TodoItem Component
+const TodoItem = ({ todo, onToggle, onDelete, onEdit, onRemoveTag, getPriorityColor }: TodoItemProps) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(todo.text);
+
+  const handleSaveEdit = () => {
+    onEdit(todo.id, editText);
+    setIsEditing(false);
+  };
+
+  return (
+    <Card className="p-4">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-2 flex-1">
+            <button
+              onClick={() => onToggle(todo.id)}
+              className={`mt-1 ${todo.completed ? 'text-green-500' : 'text-gray-400'}`}
+              aria-label={todo.completed ? 'Mark as incomplete' : 'Mark as complete'}
+            >
+              {todo.completed ? (
+                <CheckCircle className="w-5 h-5" />
+              ) : (
+                <Circle className="w-5 h-5" />
+              )}
+            </button>
+
+            {isEditing ? (
+              <div className="flex gap-2 flex-1">
+                <Input
+                  type="text"
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  className="flex-1"
+                />
+                <Button onClick={handleSaveEdit}>Save</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditing(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <div className="flex-1">
+                <span className={`${todo.completed ? 'line-through text-gray-500' : ''}`}>
+                  {todo.text}
+                </span>
+                {todo.notes && (
+                  <span className="block text-sm text-gray-500 mt-1">
+                    {todo.notes}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="outline"
+              className={getPriorityColor(todo.priority)}
+            >
+              {todo.priority}
+            </Badge>
+            {!isEditing && (
+              <>
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="text-gray-500 hover:text-blue-500"
+                  aria-label="Edit todo"
+                >
+                  <Edit className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => onDelete(todo.id)}
+                  className="text-gray-500 hover:text-red-500"
+                  aria-label="Delete todo"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {todo.dueDate && (
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Calendar className="w-4 h-4" />
+            <span>Due: {new Date(todo.dueDate).toLocaleDateString()}</span>
+          </div>
+        )}
+
+        {todo.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {todo.tags.map((tag) => (
+              <span key={tag} className="inline-flex items-center">
+                <Badge
+                  variant="secondary"
+                  className="px-2 py-1"
+                >
+                  {tag}
+                  <button
+                    onClick={() => onRemoveTag(todo.id, tag)}
+                    className="ml-2"
+                    aria-label={`Remove ${tag} tag`}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+};
+
+// Main TodoApp Component
 const TodoApp = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodo, setNewTodo] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editText, setEditText] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPriority, setSelectedPriority] = useState<'low' | 'medium' | 'high'>('medium');
@@ -35,47 +163,44 @@ const TodoApp = () => {
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
   const [sortBy, setSortBy] = useState<'createdAt' | 'dueDate' | 'priority'>('createdAt');
-
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    try {
-      const storedTodos = localStorage.getItem('todos');
-      if (storedTodos) {
+    setIsClient(true);
+    const storedTodos = localStorage.getItem('todos');
+    if (storedTodos) {
+      try {
         const parsedTodos = JSON.parse(storedTodos);
-        console.log('Parsed todos:', parsedTodos);
         if (Array.isArray(parsedTodos)) {
           setTodos(parsedTodos);
-          toast.success('Todos Found');
-        } else {
-          throw new Error('Stored todos is not an array');
+          toast.success('Todos loaded successfully');
         }
-      } else {
-        console.log('No todos found in localStorage');
+      } catch (error) {
+        console.error('Error loading todos:', error);
+        toast.error('Failed to load todos');
       }
-    } catch (error) {
-      console.error('Error loading todos:', error);
-      toast.error('Failed to load todos');
     }
   }, []);
 
-
   useEffect(() => {
-    console.log('Todos state after update:', todos);
-  }, [todos]);
-
-
-  useEffect(() => {
-    try {
-      if (todos.length > 0) {
+    if (todos.length > 0) {
+      try {
         localStorage.setItem('todos', JSON.stringify(todos));
-        console.log('Todos saved:', todos);
+      } catch (error) {
+        console.error('Error saving todos:', error);
+        toast.error('Failed to save todos');
       }
-    } catch (error) {
-      console.error('Error saving todos:', error);
-      toast.error('Failed to save todos');
     }
   }, [todos]);
 
+  const handleAddTag = () => {
+    if (newTag.trim() && !selectedTags.includes(newTag)) {
+      setSelectedTags([...selectedTags, newTag]);
+      setNewTag('');
+    } else {
+      toast.error('Please enter a valid tag');
+    }
+  };
 
   const addTodo = (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,7 +212,7 @@ const TodoApp = () => {
 
     try {
       const newTodoItem: Todo = {
-        id: Date.now().toString(),
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         text: newTodo.trim(),
         completed: false,
         priority: selectedPriority,
@@ -98,13 +223,7 @@ const TodoApp = () => {
       };
 
       setTodos(prevTodos => [...prevTodos, newTodoItem]);
-
-      setNewTodo('');
-      setSelectedTags([]);
-      setDueDate('');
-      setNotes('');
-      setSelectedPriority('medium');
-
+      resetForm();
       toast.success('Todo added successfully');
     } catch (error) {
       console.error('Error adding todo:', error);
@@ -112,79 +231,22 @@ const TodoApp = () => {
     }
   };
 
-
-  const toggleTodo = (id: string) => {
-    try {
-      setTodos(prevTodos =>
-        prevTodos.map(todo =>
-          todo.id === id ? { ...todo, completed: !todo.completed } : todo
-        )
-      );
-    } catch (error) {
-      console.error('Error toggling todo:', error);
-      toast.error('Failed to update todo');
-    }
+  const resetForm = () => {
+    setNewTodo('');
+    setSelectedTags([]);
+    setDueDate('');
+    setNotes('');
+    setSelectedPriority('medium');
   };
-
-
-  const deleteTodo = (id: string) => {
-    try {
-      setTodos(prevTodos => prevTodos.filter(todo => todo.id !== id));
-      toast.success('Todo deleted');
-    } catch (error) {
-      console.error('Error deleting todo:', error);
-      toast.error('Failed to delete todo');
-    }
-  };
-
-
-  const startEditing = (todo: Todo) => {
-    setEditingId(todo.id);
-    setEditText(todo.text);
-  };
-
-
-  const saveEdit = (id: string) => {
-    setTodos(todos.map((todo) =>
-      todo.id === id ? { ...todo, text: editText } : todo
-    ));
-    setEditingId(null);
-  };
-
-
-  const addTag = (todoId: string, tag: string) => {
-    if (tag.trim()) {
-      setTodos(todos.map((todo) =>
-        todo.id === todoId && !todo.tags.includes(tag)
-          ? { ...todo, tags: [...todo.tags, tag] }
-          : todo
-      ));
-    }
-  };
-
-
-  const removeTag = (todoId: string, tagToRemove: string) => {
-    setTodos(todos.map((todo) =>
-      todo.id === todoId
-        ? { ...todo, tags: todo.tags.filter((tag) => tag !== tagToRemove) }
-        : todo
-    ));
-  };
-
 
   const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'text-red-500';
-      case 'medium':
-        return 'text-yellow-500';
-      case 'low':
-        return 'text-green-500';
-      default:
-        return 'text-gray-500';
-    }
+    const colors = {
+      high: 'text-red-500',
+      medium: 'text-yellow-500',
+      low: 'text-green-500',
+    };
+    return colors[priority as keyof typeof colors] || 'text-gray-500';
   };
-
 
   const filteredAndSortedTodos = todos
     .filter((todo) => {
@@ -216,304 +278,199 @@ const TodoApp = () => {
     active: todos.filter((t) => !t.completed).length,
   };
 
+  if (!isClient) {
+    return null; // Prevent hydration errors by not rendering until client-side
+  }
 
   return (
     <>
-      <Toaster
-        position="top-right"
-        reverseOrder={false}
-      />
-      <header className="text-center text-2xl font-semibold mt-4">
-        <h1>Todo App</h1>
-      </header>
-      <div className="text-center text-gray-500 text-sm mt-2">
-        <p>
-          A simple todo app built with Next.js and Tailwind CSS
-        </p>
-      </div>
-      <Card className="w-full max-w-4xl mx-auto">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold">Todo List</CardTitle>
-          <CardDescription className="flex gap-4">
-            <Badge variant="outline">Total: {stats.total}</Badge>
-            <Badge variant="outline" className="bg-green-50">
-              Completed: {stats.completed}
-            </Badge>
-            <Badge variant="outline" className="bg-blue-50">
-              Active: {stats.active}
-            </Badge>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <form onSubmit={addTodo} className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                type="text"
-                value={newTodo}
-                onChange={(e) => setNewTodo(e.target.value)}
-                placeholder="Add a new todo..."
-                className="flex-1"
-              />
-              <Button type="submit">
-                <Plus className="w-4 h-4 mr-2" />
-                Add
-              </Button>
-            </div>
+      <Toaster position="top-right" />
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4">
+          <header className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Todo App</h1>
+            <span className="text-gray-600">
+              A simple todo app built with Next.js and Tailwind CSS
+            </span>
+          </header>
 
-            <div className="flex flex-wrap gap-2">
-              <Select
-                value={selectedPriority}
-                onValueChange={(value: 'low' | 'medium' | 'high') =>
-                  setSelectedPriority(value)
-                }
-              >
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-40"
-              />
-
-              <div className="flex gap-2 flex-1">
-                <Input
-                  type="text"
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add tags..."
-                  className="flex-1"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      if (newTag.trim() && !selectedTags.includes(newTag)) {
-                        setSelectedTags([...selectedTags, newTag]);
-                        setNewTag('');
-                      }
-                      else {
-                        toast.error('Please enter a valid tag');
-                      }
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    if (newTag.trim() && !selectedTags.includes(newTag)) {
-                      setSelectedTags([...selectedTags, newTag]);
-                      setNewTag('');
-                    }
-                    else {
-                      toast.error('Please enter a valid tag');
-                    }
-                  }}
-                >
-                  Add Tag
-                </Button>
+          <Card>
+            <CardHeader>
+              <CardTitle>Todo List</CardTitle>
+              <div className="flex gap-4">
+                <Badge variant="outline">Total: {stats.total}</Badge>
+                <Badge variant="outline" className="bg-green-50">
+                  Completed: {stats.completed}
+                </Badge>
+                <Badge variant="outline" className="bg-blue-50">
+                  Active: {stats.active}
+                </Badge>
               </div>
-            </div>
+            </CardHeader>
 
-            {selectedTags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {selectedTags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    variant="secondary"
-                    className="px-2 py-1"
+            <CardContent className="space-y-6">
+              <form onSubmit={addTodo} className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={newTodo}
+                    onChange={(e) => setNewTodo(e.target.value)}
+                    placeholder="Add a new todo..."
+                    className="flex-1"
+                  />
+                  <Button type="submit">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Select
+                    value={selectedPriority}
+                    onValueChange={(value: 'low' | 'medium' | 'high') =>
+                      setSelectedPriority(value)
+                    }
                   >
-                    {tag}
-                    <button
-                      onClick={() =>
-                        setSelectedTags(selectedTags.filter((t) => t !== tag))
-                      }
-                      className="ml-2"
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Input
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="w-40"
+                  />
+
+                  <div className="flex gap-2 flex-1">
+                    <Input
+                      type="text"
+                      value={newTag}
+                      onChange={(e) => setNewTag(e.target.value)}
+                      placeholder="Add tags..."
+                      className="flex-1"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddTag();
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleAddTag}
                     >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-
-            <Input
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add notes..."
-            />
-          </form>
-
-          <h2 className="text-lg font-semibold">Your Todos</h2>
-
-          <div className="flex flex-wrap gap-4 items-center">
-            <Tabs value={filter} onValueChange={(value: any) => setFilter(value)}>
-              <TabsList>
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="active">Active</TabsTrigger>
-                <TabsTrigger value="completed">Completed</TabsTrigger>
-              </TabsList>
-            </Tabs>
-
-            <Select
-              value={sortBy}
-              onValueChange={(value: any) => setSortBy(value)}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="createdAt">Created Date</SelectItem>
-                <SelectItem value="dueDate">Due Date</SelectItem>
-                <SelectItem value="priority">Priority</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search todos..."
-              className="flex-1"
-            />
-          </div>
-
-          <div className="space-y-2">
-            {filteredAndSortedTodos.map((todo) => (
-              <Card key={todo.id} className="p-4">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-2 flex-1">
-                      <button
-                        onClick={() => toggleTodo(todo.id)}
-                        className={`mt-1 ${todo.completed ? 'text-green-500' : 'text-gray-400'
-                          }`}
-                      >
-                        {todo.completed ? (
-                          <CheckCircle className="w-5 h-5" />
-                        ) : (
-                          <Circle className="w-5 h-5" />
-                        )}
-                      </button>
-
-                      {editingId === todo.id ? (
-                        <div className="flex gap-2 flex-1">
-                          <Input
-                            type="text"
-                            value={editText}
-                            onChange={(e) => setEditText(e.target.value)}
-                            className="flex-1"
-                          />
-                          <Button onClick={() => saveEdit(todo.id)}>Save</Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => setEditingId(null)}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex-1">
-                          <p
-                            className={`${todo.completed ? 'line-through text-gray-500' : ''
-                              }`}
-                          >
-                            {todo.text}
-                          </p>
-                          {todo.notes && (
-                            <p className="text-sm text-gray-500 mt-1">
-                              {todo.notes}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className={getPriorityColor(todo.priority)}
-                      >
-                        {todo.priority}
-                      </Badge>
-                      {!editingId && (
-                        <>
-                          <button
-                            onClick={() => startEditing(todo)}
-                            className="text-gray-500 hover:text-blue-500"
-                          >
-                            <Edit className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => deleteTodo(todo.id)}
-                            className="text-gray-500 hover:text-red-500"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </>
-                      )}
-                    </div>
+                      Add Tag
+                    </Button>
                   </div>
+                </div>
 
-                  {todo.dueDate && (
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <Calendar className="w-4 h-4" />
-                      Due: {new Date(todo.dueDate).toLocaleDateString()}
-                    </div>
-                  )}
-
-                  {todo.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {todo.tags.map((tag) => (
+                {selectedTags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedTags.map((tag) => (
+                      <span key={tag} className="inline-flex items-center">
                         <Badge
-                          key={tag}
                           variant="secondary"
                           className="px-2 py-1"
                         >
                           {tag}
                           <button
-                            onClick={() => removeTag(todo.id, tag)}
+                            onClick={() =>
+                              setSelectedTags(selectedTags.filter((t) => t !== tag))
+                            }
                             className="ml-2"
                           >
                             <X className="w-3 h-3" />
                           </button>
                         </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
+                      </span>
+                    ))}
+                  </div>
+                )}
 
-          {filteredAndSortedTodos.length === 0 && (
-            <Alert>
-              <AlertDescription>
-                No todos found. {filter !== 'all' && 'Try changing the filter.'}
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
-      <footer className="text-center text-gray-500 text-sm mt-4">
-        <p>
-          Built with <a href="https://nextjs.org" className="underline">Next.js</a> and <a href="https://tailwindcss.com" className="underline">Tailwind CSS</a> by <a href="https://www.linkedin.com/in/rohitkumaryadav-rky/" className="underline">Rohit Kumar Yadav</a>
-        </p>
-        <p>
-          <a href="https://github.com/rohit-ayadav/to-do-app" className="underline">View source code</a> on GitHub
-        </p>
-      </footer>
+                <Input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add notes..."
+                />
+              </form>
 
+              <div className="flex flex-wrap gap-4 items-center">
+                <Tabs value={filter} onValueChange={(value: any) => setFilter(value)}>
+                  <TabsList>
+                    <TabsTrigger value="all">All</TabsTrigger>
+                    <TabsTrigger value="active">Active</TabsTrigger>
+                    <TabsTrigger value="completed">Completed</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
+                <Select
+                  value={sortBy}
+                  onValueChange={(value: any) => setSortBy(value)}
+                >
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="createdAt">Created Date</SelectItem>
+                    <SelectItem value="dueDate">Due Date</SelectItem>
+                    <SelectItem value="priority">Priority</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search todos..."
+                />
+              </div>
+
+              {filteredAndSortedTodos.map((todo) => (
+                <TodoItem
+                  key={todo.id}
+                  todo={todo}
+                  onToggle={(id) =>
+                    setTodos((prevTodos) =>
+                      prevTodos.map((t) =>
+                        t.id === id ? { ...t, completed: !t.completed } : t
+                      )
+                    )
+                  }
+                  onDelete={(id) =>
+                    setTodos((prevTodos) => prevTodos.filter((t) => t.id !== id))
+                  }
+                  onEdit={(id, newText) =>
+                    setTodos((prevTodos) =>
+                      prevTodos.map((t) =>
+                        t.id === id ? { ...t, text: newText } : t
+                      )
+                    )
+                  }
+                  onRemoveTag={(id, tag) =>
+                    setTodos((prevTodos) =>
+                      prevTodos.map((t) =>
+                        t.id === id ? { ...t, tags: t.tags.filter((t) => t !== tag) } : t
+                      )
+                    )
+                  }
+                  getPriorityColor={getPriorityColor}
+                />
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </>
   );
-};
+}
 
 export default TodoApp;
